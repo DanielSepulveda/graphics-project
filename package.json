@@ -1,0 +1,27 @@
+{
+  "name": "final-project",
+  "version": "1.0.0",
+  "description": "Tec graphics class final project",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf dist",
+    "dev": "parcel ./src/index.html --port 3000 --open",
+    "prebuild": "npm run clean",
+    "build": "parcel build ./src/index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DanielSepulveda/graphics-project.git"
+  },
+  "author": "Daniel Sepulveda",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/DanielSepulveda/graphics-project/issues"
+  },
+  "homepage": "https://github.com/DanielSepulveda/graphics-project#readme",
+  "devDependencies": {
+    "parcel-bundler": "^1.12.5",
+    "rimraf": "^2.7.1",
+    "typescript": "^4.2.4"
+  }
+}
