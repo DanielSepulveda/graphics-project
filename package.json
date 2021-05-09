@@ -4,10 +4,8 @@
   "description": "Tec graphics class final project",
   "main": "index.js",
   "scripts": {
-    "clean": "rimraf dist",
-    "dev": "parcel ./src/index.html --port 3000 --open",
-    "prebuild": "npm run clean",
-    "build": "parcel build ./src/index.html"
+    "dev": "cross-env NODE_ENV=development rollup -c",
+    "build": "cross-env NODE_ENV=production rollup -c"
   },
   "repository": {
     "type": "git",
@@ -20,10 +18,21 @@
   },
   "homepage": "https://github.com/DanielSepulveda/graphics-project#readme",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^19.0.0",
+    "@rollup/plugin-node-resolve": "^13.0.0",
     "@types/three": "^0.127.1",
     "ammojs-typed": "^1.0.6",
+    "cross-env": "^7.0.3",
     "parcel-bundler": "^1.12.5",
     "rimraf": "^2.7.1",
+    "rollup": "^2.47.0",
+    "rollup-plugin-copy": "^3.4.0",
+    "rollup-plugin-delete": "^2.0.0",
+    "rollup-plugin-livereload": "^2.0.0",
+    "rollup-plugin-progress": "^1.1.2",
+    "rollup-plugin-serve": "^1.1.0",
+    "rollup-plugin-size-snapshot": "^0.12.0",
+    "rollup-plugin-terser": "^7.0.2",
     "typescript": "^4.2.4"
   },
   "dependencies": {
