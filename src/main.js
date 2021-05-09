@@ -3,27 +3,21 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from "three/examples/jsm/libs/stats.module";
 import { ConvexObjectBreaker } from "three/examples/jsm/misc/ConvexObjectBreaker";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry";
-import AmmoModule from "ammojs-typed";
 
-/* -------------------------------------------------------------------------- */
-/*                              Global variables                              */
-/* -------------------------------------------------------------------------- */
+// - Global variables -
 
-/* --------------------------- Graphics variables --------------------------- */
-
+// Graphics variables
 let container, stats;
 let camera, controls, scene, renderer;
 let textureLoader;
+let test;
 const clock = new THREE.Clock();
 
 const mouseCoords = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
 const ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
 
-/* ---------------------------- Physics variables --------------------------- */
-
-let Ammo: typeof AmmoModule;
-
+// Physics variables
 const gravityConstant = 7.8;
 let collisionConfiguration;
 let dispatcher;
@@ -35,14 +29,14 @@ const margin = 0.05;
 const convexBreaker = new ConvexObjectBreaker();
 
 // Rigid bodies include all movable objects
-const rigidBodies: any[] = [];
+const rigidBodies = [];
 
 const pos = new THREE.Vector3();
 const quat = new THREE.Quaternion();
 let transformAux1;
 let tempBtVec3_1;
 
-const objectsToRemove: any[] = [];
+const objectsToRemove = [];
 
 for (let i = 0; i < 500; i++) {
   objectsToRemove[i] = null;
@@ -53,22 +47,16 @@ let numObjectsToRemove = 0;
 const impactPoint = new THREE.Vector3();
 const impactNormal = new THREE.Vector3();
 
-let Ammolib: typeof Ammo;
+// - Main code -
 
-/* -------------------------------------------------------------------------- */
-/*                                  Main code                                 */
-/* -------------------------------------------------------------------------- */
-
-AmmoModule().then(function (api) {
-  Ammolib = api;
+Ammo().then(function (AmmoLib) {
+  Ammo = AmmoLib;
 
   init();
   animate();
 });
 
-/* -------------------------------------------------------------------------- */
-/*                                  Functions                                 */
-/* -------------------------------------------------------------------------- */
+// - Functions -
 
 function init() {
   initGraphics();
@@ -127,7 +115,7 @@ function initGraphics() {
 
   scene.add(light);
 
-  stats = Stats();
+  stats = new Stats();
   stats.domElement.style.position = "absolute";
   stats.domElement.style.top = "0px";
   container.appendChild(stats.domElement);
@@ -140,20 +128,20 @@ function initGraphics() {
 function initPhysics() {
   // Physics configuration
 
-  collisionConfiguration = new Ammolib.btDefaultCollisionConfiguration();
-  dispatcher = new Ammolib.btCollisionDispatcher(collisionConfiguration);
-  broadphase = new Ammolib.btDbvtBroadphase();
-  solver = new Ammolib.btSequentialImpulseConstraintSolver();
-  physicsWorld = new Ammolib.btDiscreteDynamicsWorld(
+  collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+  dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+  broadphase = new Ammo.btDbvtBroadphase();
+  solver = new Ammo.btSequentialImpulseConstraintSolver();
+  physicsWorld = new Ammo.btDiscreteDynamicsWorld(
     dispatcher,
     broadphase,
     solver,
     collisionConfiguration
   );
-  physicsWorld.setGravity(new Ammolib.btVector3(0, -gravityConstant, 0));
+  physicsWorld.setGravity(new Ammo.btVector3(0, -gravityConstant, 0));
 
-  transformAux1 = new Ammolib.btTransform();
-  tempBtVec3_1 = new Ammolib.btVector3(0, 0, 0);
+  transformAux1 = new Ammo.btTransform();
+  tempBtVec3_1 = new Ammo.btVector3(0, 0, 0);
 }
 
 function createObject(mass, halfExtents, pos, quat, material) {
@@ -258,7 +246,7 @@ function createObjects() {
   const mountainHalfExtents = new THREE.Vector3(4, 5, 4);
   pos.set(5, mountainHalfExtents.y * 0.5, -7);
   quat.set(0, 0, 0, 1);
-  const mountainPoints: any[] = [];
+  const mountainPoints = [];
   mountainPoints.push(
     new THREE.Vector3(
       mountainHalfExtents.x,
@@ -317,8 +305,8 @@ function createParalellepipedWithPhysics(
     new THREE.BoxGeometry(sx, sy, sz, 1, 1, 1),
     material
   );
-  const shape = new Ammolib.btBoxShape(
-    new Ammolib.btVector3(sx * 0.5, sy * 0.5, sz * 0.5)
+  const shape = new Ammo.btBoxShape(
+    new Ammo.btVector3(sx * 0.5, sy * 0.5, sz * 0.5)
   );
   shape.setMargin(margin);
 
@@ -347,7 +335,7 @@ function createDebrisFromBreakableObject(object) {
   );
 
   // Set pointer back to the three object only in the debris objects
-  const btVecUserData: any = new Ammolib.btVector3(0, 0, 0);
+  const btVecUserData = new Ammo.btVector3(0, 0, 0);
   btVecUserData.threeObject = object;
   body.setUserPointer(btVecUserData);
 }
@@ -359,7 +347,7 @@ function removeDebris(object) {
 }
 
 function createConvexHullPhysicsShape(coords) {
-  const shape = new Ammolib.btConvexHullShape();
+  const shape = new Ammo.btConvexHullShape();
 
   for (let i = 0, il = coords.length; i < il; i += 3) {
     tempBtVec3_1.setValue(coords[i], coords[i + 1], coords[i + 2]);
@@ -370,15 +358,7 @@ function createConvexHullPhysicsShape(coords) {
   return shape;
 }
 
-function createRigidBody(
-  object,
-  physicsShape,
-  mass,
-  pos,
-  quat,
-  vel: any = null,
-  angVel: any = null
-) {
+function createRigidBody(object, physicsShape, mass, pos, quat, vel, angVel) {
   if (pos) {
     object.position.copy(pos);
   } else {
@@ -391,35 +371,31 @@ function createRigidBody(
     quat = object.quaternion;
   }
 
-  const transform = new Ammolib.btTransform();
+  const transform = new Ammo.btTransform();
   transform.setIdentity();
-  transform.setOrigin(new Ammolib.btVector3(pos.x, pos.y, pos.z));
-  transform.setRotation(
-    new Ammolib.btQuaternion(quat.x, quat.y, quat.z, quat.w)
-  );
-  const motionState = new Ammolib.btDefaultMotionState(transform);
+  transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
+  transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
+  const motionState = new Ammo.btDefaultMotionState(transform);
 
-  const localInertia = new Ammolib.btVector3(0, 0, 0);
+  const localInertia = new Ammo.btVector3(0, 0, 0);
   physicsShape.calculateLocalInertia(mass, localInertia);
 
-  const rbInfo = new Ammolib.btRigidBodyConstructionInfo(
+  const rbInfo = new Ammo.btRigidBodyConstructionInfo(
     mass,
     motionState,
     physicsShape,
     localInertia
   );
-  const body = new Ammolib.btRigidBody(rbInfo);
+  const body = new Ammo.btRigidBody(rbInfo);
 
   body.setFriction(0.5);
 
   if (vel) {
-    body.setLinearVelocity(new Ammolib.btVector3(vel.x, vel.y, vel.z));
+    body.setLinearVelocity(new Ammo.btVector3(vel.x, vel.y, vel.z));
   }
 
   if (angVel) {
-    body.setAngularVelocity(
-      new Ammolib.btVector3(angVel.x, angVel.y, angVel.z)
-    );
+    body.setAngularVelocity(new Ammo.btVector3(angVel.x, angVel.y, angVel.z));
   }
 
   object.userData.physicsBody = body;
@@ -467,7 +443,7 @@ function initInput() {
     );
     ball.castShadow = true;
     ball.receiveShadow = true;
-    const ballShape = new Ammolib.btSphereShape(ballRadius);
+    const ballShape = new Ammo.btSphereShape(ballRadius);
     ballShape.setMargin(margin);
     pos.copy(raycaster.ray.direction);
     pos.add(raycaster.ray.origin);
@@ -476,7 +452,7 @@ function initInput() {
 
     pos.copy(raycaster.ray.direction);
     pos.multiplyScalar(24);
-    ballBody.setLinearVelocity(new Ammolib.btVector3(pos.x, pos.y, pos.z));
+    ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
   });
 }
 
@@ -525,23 +501,13 @@ function updatePhysics(deltaTime) {
 
   for (let i = 0, il = dispatcher.getNumManifolds(); i < il; i++) {
     const contactManifold = dispatcher.getManifoldByIndexInternal(i);
-    const rb0 = (Ammolib as any).castObject(
-      contactManifold.getBody0(),
-      Ammolib.btRigidBody
-    );
-    const rb1 = (Ammolib as any).castObject(
-      contactManifold.getBody1(),
-      Ammolib.btRigidBody
-    );
+    const rb0 = Ammo.castObject(contactManifold.getBody0(), Ammo.btRigidBody);
+    const rb1 = Ammo.castObject(contactManifold.getBody1(), Ammo.btRigidBody);
 
-    const threeObject0 = (Ammolib as any).castObject(
-      rb0.getUserPointer(),
-      Ammolib.btVector3
-    ).threeObject;
-    const threeObject1 = (Ammolib as any).castObject(
-      rb1.getUserPointer(),
-      Ammolib.btVector3
-    ).threeObject;
+    const threeObject0 = Ammo.castObject(rb0.getUserPointer(), Ammo.btVector3)
+      .threeObject;
+    const threeObject1 = Ammo.castObject(rb1.getUserPointer(), Ammo.btVector3)
+      .threeObject;
 
     if (!threeObject0 && !threeObject1) {
       continue;
@@ -594,7 +560,8 @@ function updatePhysics(deltaTime) {
         impactPoint,
         impactNormal,
         1,
-        2
+        2,
+        1.5
       );
 
       const numObjects = debris.length;
@@ -622,7 +589,8 @@ function updatePhysics(deltaTime) {
         impactPoint,
         impactNormal,
         1,
-        2
+        2,
+        1.5
       );
 
       const numObjects = debris.length;
