@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from "three/examples/jsm/libs/stats.module";
 import { ConvexObjectBreaker } from "three/examples/jsm/misc/ConvexObjectBreaker";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry";
+import dat from '../public/libs/dat.gui.module.js'
 
 // - Global variables -
 
@@ -18,13 +19,119 @@ const raycaster = new THREE.Raycaster();
 const ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
 
 // Physics variables
-const gravityConstant = 7.8;
+const gravityConstant = 1000;
 let collisionConfiguration;
 let dispatcher;
 let broadphase;
 let solver;
 let physicsWorld;
 const margin = 0.05;
+
+///INICIO DE LAS BALAS
+var ballMass = 2000;
+var ballRadius = 70;
+var ballBody ;
+
+
+window.addEventListener("pointerdown", function (event) {
+  mouseCoords.set(
+    (event.clientX / window.innerWidth) * 2 - 1,
+    -(event.clientY / window.innerHeight) * 2 + 1
+  );
+
+  //raycaster.setFromCamera(mouseCoords, camera);
+  //raycaster.set( (-14, 8, 16),(5,0,0));
+
+  var from = new THREE.Vector3(-10, 0, 0);
+  var to = new THREE.Vector3(50, 30, 0);
+
+  raycaster.set( from, to);
+
+  //var from = new THREE.Vector3(0, 0, 5);
+  //var to = new THREE.Vector3(0, -100, 300);
+  //raycaster.set(from, to);
+
+  // Creates a ball and throws it
+  
+  //ballRadius = .4; Masa de la pelota
+
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(ballRadius, 14, 10),
+    ballMaterial
+  );
+  ball.castShadow = true;
+  ball.receiveShadow = true;
+  const ballShape = new Ammo.btSphereShape(ballRadius);
+  ballShape.setMargin(margin);
+  pos.copy(raycaster.ray.direction);
+  pos.add(raycaster.ray.origin);
+  quat.set(0, 0, 0, 1);
+   ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
+
+  pos.copy(raycaster.ray.direction);
+  pos.multiplyScalar(24);
+  ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
+});
+
+//////FIN DE BALAS
+
+let gui = new dat.GUI();
+
+var params = {
+  masa: 2000
+};
+//Position Menu
+let BallMass = gui.addFolder("BallMass");
+//view
+//PostMenu.open()
+let sliderPosX = BallMass.add(params,"masa").min(1).max(100).step(10).name("X").listen().onChange(function(value){
+  
+}).onFinishChange(function(value){
+  console.log(value)
+  
+  window.addEventListener("pointerdown", function (event) {
+    mouseCoords.set(
+      (event.clientX / window.innerWidth) * 2 - 1,
+      -(event.clientY / window.innerHeight) * 2 + 1
+    );
+  
+    //raycaster.setFromCamera(mouseCoords, camera);
+    //raycaster.set( (-14, 8, 16),(5,0,0));
+  
+    var from = new THREE.Vector3(-10, 0, 0);
+    var to = new THREE.Vector3(50, 30, 0);
+      
+    raycaster.set( from, to);
+    //delete ballBody;
+    //ballBody.remove();
+    //var from = new THREE.Vector3(0, 0, 5);
+    //var to = new THREE.Vector3(0, -100, 300);
+    //raycaster.set(from, to);
+  
+    // Creates a ball and throws it
+     ballMass = 2000;
+     ballRadius = value;
+    //ballRadius = .4; Masa de la pelota
+    
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(ballRadius, 14, 10),
+      ballMaterial
+    );
+    ball.castShadow = true;
+    ball.receiveShadow = true;
+    const ballShape = new Ammo.btSphereShape(ballRadius);
+    ballShape.setMargin(margin);
+    pos.copy(raycaster.ray.direction);
+    pos.add(raycaster.ray.origin);
+    quat.set(0, 0, 0, 1);
+    ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
+  
+    pos.copy(raycaster.ray.direction);
+    pos.multiplyScalar(24);
+    ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
+  });
+});
+
 
 const convexBreaker = new ConvexObjectBreaker();
 
@@ -63,7 +170,7 @@ function init() {
 
   initPhysics();
 
-  createObjects();
+  //createObjects();
 
   initInput();
 }
@@ -425,35 +532,7 @@ function createMaterial(color) {
 }
 
 function initInput() {
-  window.addEventListener("pointerdown", function (event) {
-    mouseCoords.set(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      -(event.clientY / window.innerHeight) * 2 + 1
-    );
-
-    raycaster.setFromCamera(mouseCoords, camera);
-
-    // Creates a ball and throws it
-    const ballMass = 35;
-    const ballRadius = 0.4;
-
-    const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(ballRadius, 14, 10),
-      ballMaterial
-    );
-    ball.castShadow = true;
-    ball.receiveShadow = true;
-    const ballShape = new Ammo.btSphereShape(ballRadius);
-    ballShape.setMargin(margin);
-    pos.copy(raycaster.ray.direction);
-    pos.add(raycaster.ray.origin);
-    quat.set(0, 0, 0, 1);
-    const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
-
-    pos.copy(raycaster.ray.direction);
-    pos.multiplyScalar(24);
-    ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
-  });
+  
 }
 
 function onWindowResize() {
