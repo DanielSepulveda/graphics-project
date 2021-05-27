@@ -4,7 +4,7 @@
   "description": "Tec graphics class final project",
   "main": "index.js",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development rollup -c",
+    "dev": "cross-env NODE_ENV=development rollup -c -w",
     "build": "cross-env NODE_ENV=production rollup -c"
   },
   "repository": {

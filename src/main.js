@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from "three/examples/jsm/libs/stats.module";
 import { ConvexObjectBreaker } from "three/examples/jsm/misc/ConvexObjectBreaker";
 import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry";
+import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 
 // - Global variables -
 
@@ -10,15 +11,15 @@ import { ConvexGeometry } from "three/examples/jsm/geometries/ConvexGeometry";
 let container, stats;
 let camera, controls, scene, renderer;
 let textureLoader;
-let test;
+let cannon;
 const clock = new THREE.Clock();
 
 const mouseCoords = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
 const ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
 
-// Physics variables
-const gravityConstant = 7.8;
+/* ---------------------------- PHYSICS VARIABLES --------------------------- */
+
 let collisionConfiguration;
 let dispatcher;
 let broadphase;
@@ -28,7 +29,8 @@ const margin = 0.05;
 
 const convexBreaker = new ConvexObjectBreaker();
 
-// Rigid bodies include all movable objects
+/* ------------------------------ RIGID BODIES ------------------------------ */
+
 const rigidBodies = [];
 
 const pos = new THREE.Vector3();
@@ -47,7 +49,7 @@ let numObjectsToRemove = 0;
 const impactPoint = new THREE.Vector3();
 const impactNormal = new THREE.Vector3();
 
-// - Main code -
+/* ---------------------------------- INIT ---------------------------------- */
 
 Ammo().then(function (AmmoLib) {
   Ammo = AmmoLib;
@@ -60,13 +62,14 @@ Ammo().then(function (AmmoLib) {
 
 function init() {
   initGraphics();
-
   initPhysics();
-
+  initGUI();
   createObjects();
-
+  createCannon();
   initInput();
 }
+
+/* ------------------------------ INIT GRAPHICS ----------------------------- */
 
 function initGraphics() {
   container = document.getElementById("canvas");
@@ -81,7 +84,7 @@ function initGraphics() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xbfd1e5);
 
-  camera.position.set(-14, 8, 16);
+  camera.position.set(60, 10, 30);
 
   renderer = new THREE.WebGLRenderer();
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -90,13 +93,15 @@ function initGraphics() {
   container.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 2, 0);
+  controls.target.set(-90, 10, 30);
   controls.update();
 
   textureLoader = new THREE.TextureLoader();
 
   const ambientLight = new THREE.AmbientLight(0x707070);
   scene.add(ambientLight);
+
+  // Shadows
 
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(-10, 18, 5);
@@ -120,10 +125,67 @@ function initGraphics() {
   stats.domElement.style.top = "0px";
   container.appendChild(stats.domElement);
 
-  //
-
   window.addEventListener("resize", onWindowResize);
 }
+
+/* -------------------------------- INIT GUI -------------------------------- */
+
+const gui = new GUI({ name: "gui" });
+const phFolder = gui.addFolder("Fisica");
+const prFolder = gui.addFolder("Proyectil");
+const caFolder = gui.addFolder("Cañon");
+
+const initialParams = {
+  gravity: 7.8,
+  ballMass: 35,
+  ballRadious: 0.4,
+  force: 24,
+  angle: 0,
+};
+
+const functionParams = {
+  reset: function () {
+    resetWorld();
+    createObjects();
+    gui.__controllers.forEach((controller) => {
+      if (initialParams[controller.property] !== undefined) {
+        controller.setValue(initialParams[controller.property]);
+      }
+    });
+    phFolder.__controllers.forEach((controller) => {
+      if (initialParams[controller.property] !== undefined) {
+        controller.setValue(initialParams[controller.property]);
+      }
+    });
+    prFolder.__controllers.forEach((controller) => {
+      if (initialParams[controller.property] !== undefined) {
+        controller.setValue(initialParams[controller.property]);
+      }
+    });
+    caFolder.__controllers.forEach((controller) => {
+      if (initialParams[controller.property] !== undefined) {
+        controller.setValue(initialParams[controller.property]);
+      }
+    });
+    cannon.rotateX(initialParams.angle);
+  },
+};
+
+const params = Object.assign({}, initialParams, functionParams);
+
+function initGUI() {
+  phFolder.add(params, "gravity", 0, 100).name("Gravedad");
+  phFolder.open();
+  prFolder.add(params, "ballMass", 1, 500).name("Masa");
+  prFolder.add(params, "ballRadious", 0.1, 1.5).name("Radio");
+  prFolder.open();
+  caFolder.add(params, "angle", 0, 90).name("Angulo");
+  caFolder.add(params, "force", 1, 100).name("Fuerza");
+  caFolder.open();
+  gui.add(params, "reset").name("Reset");
+}
+
+/* ------------------------------ INIT PHYSICS ------------------------------ */
 
 function initPhysics() {
   // Physics configuration
@@ -138,7 +200,7 @@ function initPhysics() {
     solver,
     collisionConfiguration
   );
-  physicsWorld.setGravity(new Ammo.btVector3(0, -gravityConstant, 0));
+  physicsWorld.setGravity(new Ammo.btVector3(0, -params.gravity, 0));
 
   transformAux1 = new Ammo.btTransform();
   tempBtVec3_1 = new Ammo.btVector3(0, 0, 0);
@@ -167,12 +229,12 @@ function createObject(mass, halfExtents, pos, quat, material) {
 
 function createObjects() {
   // Ground
-  pos.set(0, -0.5, 0);
+  pos.set(0, -0.5, 30);
   quat.set(0, 0, 0, 1);
   const ground = createParalellepipedWithPhysics(
-    40,
+    60,
     1,
-    40,
+    100,
     0,
     pos,
     quat,
@@ -187,109 +249,35 @@ function createObjects() {
     ground.material.needsUpdate = true;
   });
 
-  // Tower 1
+  // Towers
   const towerMass = 1000;
-  const towerHalfExtents = new THREE.Vector3(2, 5, 2);
-  pos.set(-8, 5, 0);
+  const numTowers = 6;
   quat.set(0, 0, 0, 1);
-  createObject(
-    towerMass,
-    towerHalfExtents,
-    pos,
-    quat,
-    createMaterial(0xb03014)
-  );
-
-  // Tower 2
-  pos.set(8, 5, 0);
-  quat.set(0, 0, 0, 1);
-  createObject(
-    towerMass,
-    towerHalfExtents,
-    pos,
-    quat,
-    createMaterial(0xb03214)
-  );
-
-  //Bridge
-  const bridgeMass = 100;
-  const bridgeHalfExtents = new THREE.Vector3(7, 0.2, 1.5);
-  pos.set(0, 10.2, 0);
-  quat.set(0, 0, 0, 1);
-  createObject(
-    bridgeMass,
-    bridgeHalfExtents,
-    pos,
-    quat,
-    createMaterial(0xb3b865)
-  );
-
-  // Stones
-  const stoneMass = 120;
-  const stoneHalfExtents = new THREE.Vector3(1, 2, 0.15);
-  const numStones = 8;
-  quat.set(0, 0, 0, 1);
-  for (let i = 0; i < numStones; i++) {
-    pos.set(0, 2, 15 * (0.5 - i / (numStones + 1)));
+  for (let i = 0; i < numTowers; i++) {
+    const towerHalfExtents = new THREE.Vector3(2, 5, 2);
+    pos.set(0, 5, 40 * (0.5 - i / (numTowers + 1)));
 
     createObject(
-      stoneMass,
-      stoneHalfExtents,
+      towerMass,
+      towerHalfExtents,
       pos,
       quat,
-      createMaterial(0xb0b0b0)
+      createMaterial(0xb03214)
     );
   }
+}
 
-  // Mountain
-  const mountainMass = 860;
-  const mountainHalfExtents = new THREE.Vector3(4, 5, 4);
-  pos.set(5, mountainHalfExtents.y * 0.5, -7);
-  quat.set(0, 0, 0, 1);
-  const mountainPoints = [];
-  mountainPoints.push(
-    new THREE.Vector3(
-      mountainHalfExtents.x,
-      -mountainHalfExtents.y,
-      mountainHalfExtents.z
-    )
+function createCannon() {
+  const axesHelper = new THREE.AxesHelper(10);
+  cannon = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 3, 3),
+    createMaterial("#000")
   );
-  mountainPoints.push(
-    new THREE.Vector3(
-      -mountainHalfExtents.x,
-      -mountainHalfExtents.y,
-      mountainHalfExtents.z
-    )
-  );
-  mountainPoints.push(
-    new THREE.Vector3(
-      mountainHalfExtents.x,
-      -mountainHalfExtents.y,
-      -mountainHalfExtents.z
-    )
-  );
-  mountainPoints.push(
-    new THREE.Vector3(
-      -mountainHalfExtents.x,
-      -mountainHalfExtents.y,
-      -mountainHalfExtents.z
-    )
-  );
-  mountainPoints.push(new THREE.Vector3(0, mountainHalfExtents.y, 0));
-  const mountain = new THREE.Mesh(
-    new ConvexGeometry(mountainPoints),
-    createMaterial(0xb03814)
-  );
-  mountain.position.copy(pos);
-  mountain.quaternion.copy(quat);
-  convexBreaker.prepareBreakableObject(
-    mountain,
-    mountainMass,
-    new THREE.Vector3(),
-    new THREE.Vector3(),
-    true
-  );
-  createDebrisFromBreakableObject(mountain);
+  pos.set(0, 1.5, 70);
+  cannon.position.copy(pos);
+  cannon.rotation.set(0, 0, 0);
+  cannon.add(axesHelper);
+  scene.add(cannon);
 }
 
 function createParalellepipedWithPhysics(
@@ -426,33 +414,44 @@ function createMaterial(color) {
 
 function initInput() {
   window.addEventListener("pointerdown", function (event) {
-    mouseCoords.set(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      -(event.clientY / window.innerHeight) * 2 + 1
-    );
+    const eventTarget = event.target;
+    const clickedGui = gui.domElement.contains(eventTarget);
 
-    raycaster.setFromCamera(mouseCoords, camera);
+    if (!clickedGui) {
+      mouseCoords.set(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+      );
 
-    // Creates a ball and throws it
-    const ballMass = 35;
-    const ballRadius = 0.4;
+      console.log(cannon);
+      const zDir = new THREE.Vector3(0, 0, -1);
+      const axis = new THREE.Vector3(1, 0, 0);
+      const angle = (params.angle * Math.PI) / 180;
+      const dir = zDir.applyAxisAngle(axis, angle);
+      raycaster.set(cannon.position, dir);
 
-    const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(ballRadius, 14, 10),
-      ballMaterial
-    );
-    ball.castShadow = true;
-    ball.receiveShadow = true;
-    const ballShape = new Ammo.btSphereShape(ballRadius);
-    ballShape.setMargin(margin);
-    pos.copy(raycaster.ray.direction);
-    pos.add(raycaster.ray.origin);
-    quat.set(0, 0, 0, 1);
-    const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
+      // Creates a ball and throws it
+      const ballMass = params.ballMass;
+      const ballRadius = params.ballRadious;
 
-    pos.copy(raycaster.ray.direction);
-    pos.multiplyScalar(24);
-    ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(ballRadius, 14, 10),
+        ballMaterial
+      );
+      ball.castShadow = true;
+      ball.receiveShadow = true;
+      const ballShape = new Ammo.btSphereShape(ballRadius);
+      ballShape.setMargin(margin);
+      // pos.copy(raycaster.ray.direction);
+      pos.copy(raycaster.ray.direction);
+      pos.add(raycaster.ray.origin);
+      quat.set(0, 0, 0, 1);
+      const ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
+
+      pos.copy(raycaster.ray.direction);
+      pos.multiplyScalar(params.force);
+      ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
+    }
   });
 }
 
@@ -473,14 +472,24 @@ function animate() {
 function render() {
   const deltaTime = clock.getDelta();
 
+  cannon.rotation.set((params.angle * Math.PI) / 180, 0, 0);
+
   updatePhysics(deltaTime);
 
   renderer.render(scene, camera);
 }
 
+function resetWorld() {
+  for (let i = 0, il = rigidBodies.length; i < il; i++) {
+    const objThree = rigidBodies[i];
+    removeDebris(objThree);
+  }
+}
+
 function updatePhysics(deltaTime) {
   // Step world
   physicsWorld.stepSimulation(deltaTime, 10);
+  physicsWorld.setGravity(new Ammo.btVector3(0, -params.gravity, 0));
 
   // Update rigid bodies
   for (let i = 0, il = rigidBodies.length; i < il; i++) {
